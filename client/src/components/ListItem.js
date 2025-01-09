@@ -3,12 +3,12 @@ import ProgressBar from './ProgressBar';
 import Modal from './Modal';
 import {useState} from 'react';
 
-function ListItem({task, getData}) {
+function ListItem({project, getData}) {
   const [showModal, setShowModal] = useState(false);
  
   async function deleteItem() {
     try {
-      const response = await fetch(`${process.env.REACT_APP_SERVERURL}/tasks/${task.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_SERVERURL}/projects/${project.projectid}`, {
         method: 'DELETE',
       });
 
@@ -20,22 +20,21 @@ function ListItem({task, getData}) {
     }
   }
   
-    return (
-      <li className = "list-item"> 
+  return (
+    <li className="list-item"> 
+      <div className="info-container">
+        <TickIcon/>
+        <p className="task-title">{project.projectname}</p>
+        <ProgressBar status={project.status}/>
+      </div>
 
-        <div className="info-container">
-          <TickIcon/>
-          <p className="task-title">{task.title}</p>
-          <ProgressBar/>
-        </div>
-
-        <div className="button-container"> 
-          <button className="edit" onClick={() => setShowModal(true)}>EDIT</button>
-          <button className="delete" onClick={deleteItem}>DELETE</button>
-        </div>
-        {showModal && <Modal mode={'edit'} setShowModal={setShowModal} getData={getData} task={task}/>}
-      </li>
-    );
-  }
+      <div className="button-container"> 
+        <button className="edit" onClick={() => setShowModal(true)}>EDIT</button>
+        <button className="delete" onClick={deleteItem}>DELETE</button>
+      </div>
+      {showModal && <Modal mode={'edit'} setShowModal={setShowModal} getData={getData} project={project}/>}
+    </li>
+  );
+}
   
   export default ListItem;

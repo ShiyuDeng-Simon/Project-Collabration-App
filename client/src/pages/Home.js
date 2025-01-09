@@ -1,49 +1,51 @@
 import ListHeader from '../components/ListHeader';
 import ListItem from '../components/ListItem';
 import {useEffect, useState} from 'react';
+import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 
 
 export default function Home() {
+  const [projects, setProjects] = useState(null);
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (user) {
+      getData();
+    }
+  }, [user]);
 
-  const userEmail = 'simon@test.com';
-  const [tasks, setTasks] = useState(null);
+  if (!user) {
+    return <Navigate to="/" />;
+  }
 
   async function getData() {
     try {
-      const response = await fetch(`${process.env.REACT_APP_SERVERURL}/tasks/${userEmail}`);
+      const response = await fetch(`${process.env.REACT_APP_SERVERURL}/projects/${user.email}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
       const json = await response.json();
-      setTasks(json);
+      setProjects(json);
     } catch (err) {
       console.error(err);
     }
   }
 
-  useEffect(() => getData, []);
-
-  //console.log(tasks);
-
-  //Sort by date
-  const sortedTasks = tasks?.sort((a,b) => new Date(a.date) - new Date(b.date));
-
+  // Sort by date
+  const sortedProjects = projects?.sort((a,b) => new Date(a.time) - new Date(b.time));
 
   return (
-    // <Routes>
-    //   <Route path="/" element={<Login />} />
-    //   <Route path="/Home" element={<Home />} />
-    //   <Route path="/Project" element={<Project />} />
-    // </Routes>
-
     <div className="app">
-      <ListHeader listName={'Holiday tick list'} getData={getData} />
-      {sortedTasks?.map((task) => <ListItem key={task.id} task={task} getData={getData} />)}
+      <ListHeader listName={`${user.firstname}'s Project list`} getData={getData} />
+      {sortedProjects?.map((project) => (
+        <ListItem 
+          key={project.projectid} // Use projectid as key
+          project={project} 
+          getData={getData} 
+        />
+      ))}
     </div>
-
-
-      
-
   );
 }
-
-
- 
