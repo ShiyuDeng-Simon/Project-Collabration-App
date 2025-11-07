@@ -1,0 +1,73 @@
+/* Fixes for react-beautiful-dnd drag and drop visibility */
+
+/* CRITICAL: Remove any transforms from draggable elements */
+[data-rbd-draggable-context-id],
+[data-rbd-drag-handle-draggable-id] {
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+
+/* Ensure dragged items are visible */
+[data-rbd-draggable-context-id] {
+  position: relative !important;
+}
+
+[data-rbd-drag-handle-draggable-id] {
+  cursor: grab !important;
+}
+
+[data-rbd-drag-handle-draggable-id]:active {
+  cursor: grabbing !important;
+}
+
+/* Critical: Ensure dragged element is visible and on top */
+[data-rbd-draggable-context-id][style*="position: absolute"],
+[data-rbd-draggable-context-id][style*="position:absolute"] {
+  z-index: 9999 !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+
+/* Prevent Material-UI from interfering with drag styles */
+.MuiCard-root {
+  -webkit-transform: none !important;
+}
+
+/* When dragging, ensure Card doesn't interfere */
+[data-rbd-draggable-context-id][style*="position: absolute"] .MuiCard-root,
+[data-rbd-draggable-context-id][style*="position:absolute"] .MuiCard-root {
+  transform: none !important;
+  -webkit-transform: none !important;
+  transition: none !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure placeholder is visible */
+[data-rbd-placeholder-context-id] {
+  background-color: transparent !important;
+  border: 2px dashed #e2e8f0 !important;
+  border-radius: 8px !important;
+}
+
+/* Prevent overflow from hiding dragged elements */
+.MuiPaper-root {
+  overflow: visible !important;
+}
+
+/* Ensure grid containers don't clip dragged items */
+[style*="display: grid"] {
+  overflow: visible !important;
+}
+
+/* Remove transforms from parent containers during drag */
+.react-beautiful-dnd-dragging [data-rbd-draggable-context-id] {
+  -webkit-transform: none !important;
+  transform: none !important;
+}
+

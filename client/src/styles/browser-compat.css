@@ -1,0 +1,138 @@
+/* Browser Compatibility Fixes */
+
+/* Ensure all transforms work across browsers - but exclude drag-and-drop elements */
+*:not([data-rbd-draggable-context-id]):not([data-rbd-drag-handle-draggable-id]) {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Fix for WebKit line clamp in older browsers */
+@supports (-webkit-line-clamp: 2) {
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Fallback for browsers that don't support line-clamp */
+@supports not (-webkit-line-clamp: 2) {
+  .line-clamp-2 {
+    max-height: 3em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+  }
+}
+
+/* Ensure gradients work in all browsers */
+.gradient-primary {
+  background: #0ea5e9; /* Fallback */
+  background: -webkit-linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+}
+
+/* Fix for flexbox in older browsers */
+.flex-container {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+/* Grid fallback for older browsers */
+.grid-container {
+  display: -ms-grid;
+  display: grid;
+}
+
+/* Smooth scrolling for all browsers */
+html {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Fix for backdrop-filter support */
+@supports (backdrop-filter: blur(10px)) {
+  .backdrop-blur {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+/* Ensure Material-UI components work in all browsers */
+.MuiButton-root {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Fix for date inputs in Safari */
+input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  -webkit-appearance: none;
+  display: none;
+}
+
+/* Ensure drag and drop works */
+[draggable="true"] {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Fix for text selection during drag */
+.react-beautiful-dnd-dragging {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Responsive breakpoints for laptop screens */
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .MuiContainer-root {
+    max-width: 1200px !important;
+  }
+}
+
+/* Ensure proper rendering on laptop browsers */
+@media (min-width: 1024px) {
+  body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  /* Better spacing for laptop screens */
+  .MuiCard-root {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .MuiCard-root:hover {
+    transform: translateY(-4px);
+    -webkit-transform: translateY(-4px);
+  }
+}
+
+/* Fix for Chrome/Safari rendering issues */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure proper box-sizing */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+}
+
