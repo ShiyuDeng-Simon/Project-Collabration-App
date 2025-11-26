@@ -2,6 +2,10 @@
 
 A full-stack web application for project collaboration and task management with Google OAuth authentication.
 
+## Now Live!!!
+
+visit https://project-collab-app-529292564332.us-central1.run.app/
+
 ## Features
 
 - 🔐 **Google OAuth Authentication** - Secure login with Google accounts
