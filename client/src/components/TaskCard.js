@@ -20,24 +20,15 @@ export default function TaskCard({ task, onClick, isDragging }) {
       onClick={onClick}
       sx={{
         cursor: 'pointer',
-        // Critical: Remove all transforms when dragging - react-beautiful-dnd controls positioning
-        transform: isDragging ? 'none !important' : 'none',
-        transition: isDragging ? 'none !important' : 'all 0.2s',
         mb: 0,
         borderRadius: 2,
         border: `1px solid ${priorityColor.border}`,
         background: 'white',
-        // Ensure visibility during drag
-        opacity: isDragging ? 1 : 1,
-        visibility: isDragging ? 'visible' : 'visible',
-        pointerEvents: isDragging ? 'none' : 'auto',
-        // Remove any Material-UI default transforms
-        '&::before': {
-          display: isDragging ? 'none' : 'none'
-        },
+        opacity: isDragging ? 0.5 : 1,
+        transition: isDragging ? 'none' : 'all 0.2s',
         '&:hover': {
           boxShadow: isDragging ? 'none' : 4,
-          transform: isDragging ? 'none !important' : 'translateY(-2px)'
+          transform: isDragging ? 'none' : 'translateY(-2px)'
         }
       }}
     >

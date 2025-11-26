@@ -26,33 +26,45 @@ export default function Home() {
   }, [isAuthenticated, navigate]);
 
   const fetchProjects = useCallback(async () => {
-    if (!user?.userId) return;
+    if (!user?.userId || !token) {
+      console.log('Missing user or token:', { userId: user?.userId, hasToken: !!token });
+      setLoading(false);
+      return;
+    }
     
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(
-        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/projects/user/${user.userId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+      const url = `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/projects/user/${user.userId}`;
+      console.log('Fetching projects from:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
+
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error response:', errorData);
+        
         if (response.status === 401) {
+          console.log('Unauthorized, redirecting to login');
           navigate('/');
           return;
         }
-        throw new Error('Failed to fetch projects');
+        throw new Error(errorData.error || `Failed to fetch projects: ${response.status}`);
       }
 
       const data = await response.json();
-      setProjects(data);
+      console.log('Projects fetched:', data);
+      setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError('Failed to load projects. Please try again.');
+      setError(err.message || 'Failed to load projects. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -229,11 +241,32 @@ export default function Home() {
           <Box sx={{ 
             bgcolor: '#fee2e2',
             color: '#991b1b',
-            p: 2,
+            p: 3,
             borderRadius: 2,
-            mb: 3
+            mb: 3,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 2
           }}>
-            {error}
+            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+              {error}
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => fetchProjects()}
+              sx={{
+                borderColor: '#991b1b',
+                color: '#991b1b',
+                '&:hover': {
+                  borderColor: '#7f1d1d',
+                  bgcolor: '#fecaca'
+                }
+              }}
+            >
+              Retry
+            </Button>
           </Box>
         )}
 

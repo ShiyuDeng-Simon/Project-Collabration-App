@@ -8,11 +8,24 @@ const { validateProject } = require('../middleware/validation');
 // Get all projects for a user (as owner or member)
 router.get('/user/:userId', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Debug: Log the entire user object from token
+    console.log('Request user object:', JSON.stringify(req.user, null, 2));
+    console.log('URL userId param:', req.params.userId);
 
-    if (req.user.userId !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
+    // Use the userId from the JWT token - this is the authenticated user
+    // Try different possible field names
+    const userId = req.user.userId || req.user.userid || req.user.userID;
+
+    if (!userId) {
+      console.error('No userId found in token. Token contents:', req.user);
+      return res.status(400).json({
+        error: 'User ID is required',
+        debug: 'Token does not contain userId field',
+        tokenFields: Object.keys(req.user || {})
+      });
     }
+
+    console.log(`Fetching projects for authenticated user: ${userId}`);
 
     const projects = await pool.query(
       `SELECT DISTINCT p.*, 
@@ -23,10 +36,12 @@ router.get('/user/:userId', authenticateToken, async (req, res) => {
        ORDER BY p.Time DESC`,
       [userId]
     );
-    
+
+    console.log(`Found ${projects.rows.length} projects for user ${userId}`);
     res.json(projects.rows);
   } catch (err) {
     console.error('Get projects error:', err);
+    console.error('Error stack:', err.stack);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -50,16 +65,28 @@ router.get('/:projectId', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Project not found or access denied' });
     }
 
+    // Debug: Check raw ProjectMember count
+    const rawMembers = await pool.query('SELECT * FROM ProjectMember WHERE projectId = $1', [projectId]);
+    console.log(`Raw ProjectMember count for ${projectId}: ${rawMembers.rows.length}`);
+    console.log('Raw members:', rawMembers.rows);
+
     // Get project members
+    // Use UNION to get both owner (from Project) and members (from ProjectMember)
+    // This handles cases where owner might not be in ProjectMember table
     const members = await pool.query(
-      `SELECT u.userid, u.email, u.firstname, u.lastname, 
-        CASE WHEN p.ownerId = u.userid THEN 'Owner' ELSE pm.role END as role
+      `SELECT u.userid, u.email, u.firstname, u.lastname, 'Owner' as role
        FROM Project p
-       LEFT JOIN ProjectMember pm ON p.ProjectID = pm.projectId
-       LEFT JOIN appUser u ON (pm.userId = u.userid OR p.ownerId = u.userid)
-       WHERE p.ProjectID = $1 AND u.userid IS NOT NULL`,
+       JOIN appUser u ON p.ownerId = u.userid
+       WHERE p.ProjectID = $1
+       UNION
+       SELECT u.userid, u.email, u.firstname, u.lastname, pm.role
+       FROM ProjectMember pm
+       JOIN appUser u ON pm.userId = u.userid
+       WHERE pm.projectId = $1`,
       [projectId]
     );
+
+    console.log(`Fetched ${members.rows.length} members for project ${projectId}`);
 
     res.json({
       ...project.rows[0],
@@ -158,7 +185,7 @@ router.delete('/:projectId', authenticateToken, async (req, res) => {
     }
 
     await pool.query('DELETE FROM Project WHERE ProjectID = $1', [projectId]);
-    
+
     res.json({ message: 'Project deleted successfully' });
   } catch (err) {
     console.error('Delete project error:', err);
@@ -188,7 +215,7 @@ router.post('/:projectId/invitations', authenticateToken, async (req, res) => {
 
     // Check if user exists
     const user = await pool.query('SELECT userid FROM appUser WHERE email = $1', [email]);
-    
+
     const invitationId = uuidv4();
     await pool.query(
       `INSERT INTO ProjectInvitation (invitationId, projectId, email, invitedBy, status) 

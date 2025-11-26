@@ -13,19 +13,15 @@ export default function Login() {
       setLoading(true);
       setError(null);
       
-      const decodedToken = jwtDecode(response.credential);
-      
-      // Send Google token to backend for authentication
+      // Send Google credential token to backend for verification
+      // Backend will verify the token and extract user info
       const serverResponse = await fetch(`${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/auth/google-auth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: decodedToken.email,
-          firstName: decodedToken.given_name,
-          lastName: decodedToken.family_name,
-          googleId: decodedToken.sub
+          credential: response.credential // Send the raw credential token
         })
       });
 
@@ -54,8 +50,15 @@ export default function Login() {
 
     script.onload = () => {
       if (window.google) {
+        const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+          console.error('REACT_APP_GOOGLE_CLIENT_ID is not set!');
+          setError('Google OAuth is not configured. Please set REACT_APP_GOOGLE_CLIENT_ID.');
+          return;
+        }
+
         window.google.accounts.id.initialize({
-          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || "626764053327-nee9hhqq1vc7t938bp832e9qtpioplug.apps.googleusercontent.com",
+          client_id: clientId,
           callback: handleCredentialResponse
         });
 

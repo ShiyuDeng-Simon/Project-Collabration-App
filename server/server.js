@@ -2,8 +2,27 @@ require('dotenv').config();
 const PORT = process.env.PORT || 8000;
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
 const app = express();
 const pool = require('./db');
+
+// Security Middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false
+}));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
 
 // Middleware
 app.use(cors({
@@ -29,6 +48,20 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/comments', commentRoutes);
+
+// API 404 handler - ensure API requests don't fall through to React
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API route not found' });
+});
+
+// Serve static files from the React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/build')));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  });
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -63,9 +96,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler (only for non-production or if static serving fails)
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  if (process.env.NODE_ENV === 'production') {
+    // Should have been caught by * route above, but just in case
+    res.status(404).sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  } else {
+    res.status(404).json({ error: 'Route not found' });
+  }
 });
 
 // Start server

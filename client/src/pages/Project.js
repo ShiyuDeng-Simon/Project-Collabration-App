@@ -1,13 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAuth } from '../context/AuthContext';
 import { ArrowBack as ArrowBackIcon, Add as AddIcon, People as PeopleIcon } from '@mui/icons-material';
 import { Box, Button, Chip, Typography, Paper, CircularProgress } from '@mui/material';
-import { theme, statusColors, priorityColors } from '../styles/theme';
+import { theme, statusColors } from '../styles/theme';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailModal from '../components/TaskDetailModal';
+import ProjectMembersModal from '../components/ProjectMembersModal';
+import InviteMemberModal from '../components/InviteMemberModal';
 import AppHeader from '../components/AppHeader';
 
 const KANBAN_COLUMNS = [
@@ -25,6 +28,8 @@ export default function Project() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedColumn, setSelectedColumn] = useState(null);
 
@@ -69,16 +74,12 @@ export default function Project() {
         }
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        // Normalize task status values to ensure compatibility
-        const normalizedTasks = data.map(task => ({
-          ...task,
-          status: task.status || task.Status || 'To Do',
-          taskid: task.taskid || task.TaskID
-        }));
-        setTasks(normalizedTasks);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks');
       }
+
+      const data = await response.json();
+      setTasks(data);
     } catch (err) {
       console.error('Error fetching tasks:', err);
     }
@@ -86,51 +87,56 @@ export default function Project() {
 
   useEffect(() => {
     if (id && token) {
-      fetchProject();
-      fetchTasks();
-      setLoading(false);
+      setLoading(true);
+      Promise.all([fetchProject(), fetchTasks()]).finally(() => {
+        setLoading(false);
+      });
     }
   }, [id, token, fetchProject, fetchTasks]);
 
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return;
+  const onDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
 
-    const { draggableId, destination } = result;
-    
-    // Find task by matching the draggableId with taskid or TaskID
-    const task = tasks.find(t => {
-      const tId = String(t.taskid || t.TaskID || '');
-      return tId === String(draggableId);
-    });
-    
-    if (!task) {
-      console.error('Task not found:', draggableId);
+    if (!destination) return;
+
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
       return;
     }
-    
-    const currentStatus = task.status || task.Status || 'To Do';
-    
-    // Map droppableId back to status
-    const droppableToStatus = {
+
+    const taskId = draggableId;
+    const destinationColumnId = destination.droppableId;
+
+    // Find task
+    const task = tasks.find(t => String(t.taskid || t.TaskID) === taskId);
+
+    if (!task) {
+      console.error('Task not found:', taskId);
+      return;
+    }
+
+    // Map column IDs to statuses
+    const columnToStatus = {
       'todo': 'To Do',
       'inprogress': 'In Progress',
       'complete': 'Complete'
     };
-    const newStatus = droppableToStatus[destination.droppableId] || destination.droppableId;
-    
-    if (currentStatus === newStatus) return;
+    const newStatus = columnToStatus[destinationColumnId];
+
+    if (!newStatus) return;
 
     // Optimistic update
     setTasks(prev => prev.map(t => {
       const tId = String(t.taskid || t.TaskID || '');
-      return tId === String(draggableId) ? { ...t, status: newStatus } : t;
+      return tId === taskId ? { ...t, status: newStatus } : t;
     }));
 
     // Update on server
     try {
-      const taskId = task.taskid || task.TaskID;
       const response = await fetch(
-        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/tasks/${taskId}/status`,
+        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/tasks/${task.taskid || task.TaskID}/status`,
         {
           method: 'PATCH',
           headers: {
@@ -142,8 +148,7 @@ export default function Project() {
       );
 
       if (!response.ok) {
-        // Revert on error
-        fetchTasks();
+        fetchTasks(); // Revert on error
       }
     } catch (err) {
       console.error('Update task status error:', err);
@@ -152,13 +157,28 @@ export default function Project() {
   };
 
   const getTasksByStatus = (status) => {
-    // Normalize status values to match column statuses
     return tasks.filter(task => {
       const taskStatus = (task.status || task.Status || 'To Do').trim();
-      const normalizedColumnStatus = status.trim();
-      // Exact match required
-      return taskStatus === normalizedColumnStatus;
+      return taskStatus === status.trim();
     });
+  };
+
+  const renderClone = (provided, snapshot, rubric) => {
+    const task = tasks.find(t => String(t.taskid || t.TaskID) === rubric.draggableId);
+    return (
+      <div
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        ref={provided.innerRef}
+        style={{
+          ...provided.draggableProps.style,
+          // width: '280px', // Removed to allow dynamic width
+          zIndex: 9999, // Ensure it's on top
+        }}
+      >
+        <TaskCard task={task} isDragging={true} />
+      </div>
+    );
   };
 
   if (loading) {
@@ -172,17 +192,13 @@ export default function Project() {
     );
   }
 
-  if (error && !project) {
+  if (error || !project) {
     return (
       <>
         <AppHeader />
         <Box sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" sx={{ color: 'error.main', mb: 2 }}>{error}</Typography>
-          <Button
-            variant="contained"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/Home')}
-          >
+          <Typography variant="h5" color="error">{error || 'Project not found'}</Typography>
+          <Button onClick={() => navigate('/Home')} sx={{ mt: 2 }}>
             Back to Home
           </Button>
         </Box>
@@ -193,96 +209,110 @@ export default function Project() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc' }}>
       <AppHeader />
-      <Box sx={{ 
-        maxWidth: '100%',
-        margin: '0 auto', 
-        padding: { xs: 2, sm: 3, md: 4, lg: 5, xl: 6 }
-      }}>
-        {/* Header */}
+      <Box sx={{ px: { xs: 2, sm: 3, md: 4, lg: 5, xl: 6 }, py: 4 }}>
+        {/* Project Header */}
         <Box sx={{ mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => navigate('/Home')}
-            sx={{ mb: 2, color: '#0ea5e9', fontWeight: 600 }}
+            sx={{ mb: 2, color: '#64748b' }}
           >
             Back to Projects
           </Button>
-          
-          {project && (
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
             <Box>
-              <Typography 
-                variant="h3" 
-                sx={{ 
-                  fontWeight: 800, 
-                  mb: 1,
-                  fontFamily: 'Poppins, sans-serif',
-                  color: '#2d3436',
-                  letterSpacing: '-0.02em'
-                }}
-              >
-                {project.title || project.projectname}
+              <Typography variant="h3" sx={{
+                fontWeight: 800,
+                mb: 1,
+                fontFamily: 'Poppins, sans-serif',
+                color: '#1e293b'
+              }}>
+                {project.title || project.Title}
               </Typography>
               {project.description && (
                 <Typography variant="body1" sx={{ color: '#64748b', mb: 2 }}>
                   {project.description}
                 </Typography>
               )}
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Chip 
-                  label={project.status || 'Active'} 
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <PeopleIcon sx={{ color: '#64748b', fontSize: 20 }} />
+                <Typography variant="body2" sx={{ color: '#64748b' }}>
+                  {project.members?.length || 0} member{project.members?.length !== 1 ? 's' : ''}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => setShowMembersModal(true)}
                   sx={{
-                    bgcolor: statusColors[project.status]?.bg || statusColors.Active.bg,
-                    color: statusColors[project.status]?.text || statusColors.Active.text,
-                    fontWeight: 600
+                    minWidth: 'auto',
+                    p: '2px 8px',
+                    fontSize: '0.75rem',
+                    textTransform: 'none',
+                    ml: 1
                   }}
-                />
-                {project.members && project.members.length > 0 && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#64748b' }}>
-                    <PeopleIcon sx={{ fontSize: 20 }} />
-                    <Typography variant="body2">
-                      {project.members.length} member{project.members.length !== 1 ? 's' : ''}
-                    </Typography>
-                  </Box>
+                >
+                  View Members
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setShowInviteModal(true)}
+                  sx={{
+                    minWidth: 'auto',
+                    p: '2px 8px',
+                    fontSize: '0.75rem',
+                    textTransform: 'none',
+                    ml: 0.5,
+                    color: '#0ea5e9'
+                  }}
+                >
+                  Invite
+                </Button>
+                {project.status && (
+                  <>
+                    <Chip
+                      label={project.status}
+                      size="small"
+                      sx={{
+                        bgcolor: statusColors[project.status]?.bg || '#f1f5f9',
+                        color: statusColors[project.status]?.text || '#475569',
+                        fontWeight: 600,
+                        ml: 1
+                      }}
+                    />
+                  </>
                 )}
               </Box>
             </Box>
-          )}
+          </Box>
         </Box>
 
         {/* Kanban Board */}
-        <DragDropContext 
-          onDragEnd={handleDragEnd}
-        >
+        <DragDropContext onDragEnd={onDragEnd}>
           <Box sx={{
             display: 'grid',
-            gridTemplateColumns: { 
-              xs: '1fr', 
+            gridTemplateColumns: {
+              xs: '1fr',
               sm: '1fr',
               md: 'repeat(3, 1fr)',
               lg: 'repeat(3, 1fr)',
               xl: 'repeat(3, 1fr)'
             },
             gap: { xs: 2, sm: 2, md: 3 },
-            mb: 4,
-            position: 'relative',
-            overflow: 'visible'
+            mb: 4
           }}>
             {KANBAN_COLUMNS.map((column) => {
               const columnTasks = getTasksByStatus(column.status);
               return (
-                <Paper 
-                  key={column.id} 
+                <Paper
+                  key={column.id}
                   elevation={2}
                   sx={{
                     p: 3,
                     minHeight: '600px',
                     bgcolor: 'white',
                     borderRadius: 3,
-                    position: 'relative',
-                    overflow: 'visible',
-                    '& > *': {
-                      overflow: 'visible !important'
-                    }
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}
                 >
                   <Box sx={{
@@ -293,14 +323,14 @@ export default function Project() {
                     pb: 2,
                     borderBottom: `3px solid ${statusColors[column.status]?.border || '#e2e8f0'}`
                   }}>
-                    <Typography variant="h6" sx={{ 
+                    <Typography variant="h6" sx={{
                       fontWeight: 600,
                       color: statusColors[column.status]?.text || '#1e293b'
                     }}>
                       {column.title}
                     </Typography>
-                    <Chip 
-                      label={columnTasks.length} 
+                    <Chip
+                      label={columnTasks.length}
                       size="small"
                       sx={{
                         bgcolor: statusColors[column.status]?.bg || '#f1f5f9',
@@ -319,7 +349,7 @@ export default function Project() {
                         setSelectedColumn('To Do');
                         setShowCreateTask(true);
                       }}
-                      sx={{ 
+                      sx={{
                         mb: 2,
                         borderColor: '#0ea5e9',
                         color: '#0ea5e9',
@@ -333,71 +363,39 @@ export default function Project() {
                     </Button>
                   )}
 
-                  <Droppable 
+                  <Droppable
                     droppableId={column.id}
-                    type="TASK"
+                    renderClone={renderClone}
                   >
                     {(provided, snapshot) => (
                       <div
-                        ref={provided.innerRef}
                         {...provided.droppableProps}
+                        ref={provided.innerRef}
                         style={{
-                          minHeight: '500px',
-                          backgroundColor: snapshot.isDraggingOver 
+                          flexGrow: 1,
+                          backgroundColor: snapshot.isDraggingOver
                             ? `${statusColors[column.status]?.bg || '#f1f5f9'}80`
                             : 'transparent',
                           borderRadius: '8px',
                           transition: 'background-color 0.2s',
-                          padding: snapshot.isDraggingOver ? '8px' : '0',
-                          position: 'relative',
-                          overflow: 'visible'
+                          padding: '8px 0',
+                          minHeight: '100px'
                         }}
                       >
-                        {columnTasks.length === 0 && !snapshot.isDraggingOver && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            color: '#94a3b8',
-                            fontSize: '0.875rem',
-                            pointerEvents: 'none'
-                          }}>
-                            Drop tasks here
-                          </div>
-                        )}
                         {columnTasks.map((task, index) => {
                           const taskId = String(task.taskid || task.TaskID);
-                          if (!taskId || taskId === 'undefined' || taskId === 'null') {
-                            console.error('Invalid task ID:', task);
-                            return null;
-                          }
                           return (
-                          <Draggable 
-                            key={taskId} 
-                            draggableId={taskId} 
-                            index={index}
-                            type="TASK"
-                          >
-                            {(provided, snapshot) => {
-                              // CRITICAL: When dragging, use the style EXACTLY as provided
-                              // Do NOT modify, merge, or override any properties
-                              const baseStyle = provided.draggableProps.style || {};
-                              
-                              // Only modify style when NOT dragging
-                              const finalStyle = snapshot.isDragging 
-                                ? baseStyle  // Use exactly as-is when dragging
-                                : {
-                                    ...baseStyle,
-                                    marginBottom: '12px'
-                                  };
-                              
-                              return (
+                            <Draggable key={taskId} draggableId={taskId} index={index}>
+                              {(provided, snapshot) => (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  style={finalStyle}
+                                  style={{
+                                    marginBottom: '12px',
+                                    ...provided.draggableProps.style,
+                                    ...(snapshot.isDragging ? { opacity: 0 } : {}) // Hide original when dragging
+                                  }}
                                 >
                                   <TaskCard
                                     task={task}
@@ -405,9 +403,8 @@ export default function Project() {
                                     isDragging={snapshot.isDragging}
                                   />
                                 </div>
-                              );
-                            }}
-                          </Draggable>
+                              )}
+                            </Draggable>
                           );
                         })}
                         {provided.placeholder}
@@ -419,36 +416,53 @@ export default function Project() {
             })}
           </Box>
         </DragDropContext>
-      </Box>
 
-      {showCreateTask && (
-        <CreateTaskModal
+        {showCreateTask && (
+          <CreateTaskModal
+            projectId={id}
+            projectMembers={project?.members || []}
+            defaultStatus={selectedColumn || 'To Do'}
+            onClose={() => {
+              setShowCreateTask(false);
+              setSelectedColumn(null);
+            }}
+            onSuccess={() => {
+              fetchTasks();
+              setShowCreateTask(false);
+              setSelectedColumn(null);
+            }}
+          />
+        )}
+
+        {selectedTask && (
+          <TaskDetailModal
+            task={selectedTask}
+            projectId={id}
+            projectMembers={project?.members || []}
+            onClose={() => setSelectedTask(null)}
+            onUpdate={fetchTasks}
+            onDelete={() => {
+              fetchTasks();
+              setSelectedTask(null);
+            }}
+          />
+        )}
+
+        <ProjectMembersModal
+          open={showMembersModal}
+          onClose={() => setShowMembersModal(false)}
+          members={project?.members || []}
+        />
+
+        <InviteMemberModal
+          open={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
           projectId={id}
-          projectMembers={project?.members || []}
-          defaultStatus={selectedColumn}
-          onClose={() => {
-            setShowCreateTask(false);
-            setSelectedColumn(null);
-          }}
           onSuccess={() => {
-            fetchTasks();
-            setShowCreateTask(false);
-            setSelectedColumn(null);
+            fetchProject(); // Refresh project data to show new member
           }}
         />
-      )}
-
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          projectMembers={project?.members || []}
-          onClose={() => setSelectedTask(null)}
-          onUpdate={() => {
-            fetchTasks();
-            setSelectedTask(null);
-          }}
-        />
-      )}
+      </Box>
     </Box>
   );
 }
