@@ -2,7 +2,10 @@
   "version": 2,
   "functions": {
     "api/index.js": {
-      "includeFiles": "node_modules/pg/lib/crypto/*.js"
+      "includeFiles": [
+        "node_modules/pg/lib/crypto/**",
+        "node_modules/pg/lib/**"
+      ]
     }
   },
   "routes": [
