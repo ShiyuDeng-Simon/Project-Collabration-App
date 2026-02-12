@@ -7,6 +7,16 @@ const { v4: uuidv4 } = require('uuid');
 const { validateEmail } = require('../middleware/validation');
 const { OAuth2Client } = require('google-auth-library');
 
+function normalizeUserFields(user) {
+  if (!user) return null;
+  return {
+    userId: (user.userId || user.userid || user.userID || '').trim(),
+    email: (user.email || '').trim(),
+    firstName: (user.firstName || user.firstname || '').trim(),
+    lastName: (user.lastName || user.lastname || '').trim()
+  };
+}
+
 // Register user (for non-OAuth users)
 router.post('/register', async (req, res) => {
   try {
@@ -45,8 +55,9 @@ router.post('/register', async (req, res) => {
     );
 
     // Generate JWT token
+    const normalizedUser = normalizeUserFields({ userId, email, firstName, lastName });
     const token = jwt.sign(
-      { userId, email, firstName, lastName },
+      normalizedUser,
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '7d' }
     );
@@ -57,7 +68,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       message: 'User created successfully',
       token,
-      user: { userId, email, firstName, lastName }
+      user: normalizedUser
     });
   } catch (err) {
     console.error('Registration error:', err);
@@ -100,13 +111,9 @@ router.post('/login', async (req, res) => {
 
     // Generate JWT token
     // Note: PostgreSQL returns column names in lowercase unless quoted
+    const normalizedUser = normalizeUserFields(user);
     const token = jwt.sign(
-      {
-        userId: user.userid || user.userID,
-        email: user.email,
-        firstName: user.firstname || user.firstName,
-        lastName: user.lastname || user.lastName
-      },
+      normalizedUser,
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -114,12 +121,7 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Login successful',
       token,
-      user: {
-        userId: user.userid || user.userID,
-        email: user.email,
-        firstName: user.firstname || user.firstName,
-        lastName: user.lastname || user.lastName
-      }
+      user: normalizedUser
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -167,9 +169,10 @@ router.post('/google-auth', async (req, res) => {
     );
 
     let user;
+    let userId;
     if (userResult.rows.length === 0) {
       // Create new user
-      const userId = uuidv4();
+      userId = uuidv4();
       // For OAuth users, we can use a random password or null
       const randomPassword = await bcrypt.hash(uuidv4(), 10);
 
@@ -186,6 +189,7 @@ router.post('/google-auth', async (req, res) => {
       };
     } else {
       user = userResult.rows[0];
+      userId = user.userid || user.userID;
     }
 
     // Ensure JWT_SECRET is set
@@ -196,29 +200,20 @@ router.post('/google-auth', async (req, res) => {
 
     // Generate JWT token
     // Note: PostgreSQL returns column names in lowercase unless quoted
+    const normalizedUser = normalizeUserFields(user);
     const token = jwt.sign(
-      {
-        userId: user.userid || user.userID,
-        email: user.email,
-        firstName: user.firstname || user.firstName,
-        lastName: user.lastname || user.lastName
-      },
+      normalizedUser,
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     // Process any pending invitations
-    await processPendingInvitations(email, userId);
+    await processPendingInvitations(normalizedUser.email, normalizedUser.userId);
 
     res.json({
       message: 'Authentication successful',
       token,
-      user: {
-        userId: user.userid || user.userID,
-        email: user.email,
-        firstName: user.firstname || user.firstName,
-        lastName: user.lastname || user.lastName
-      }
+      user: normalizedUser
     });
   } catch (err) {
     console.error('Google auth error:', err);
@@ -261,4 +256,3 @@ async function processPendingInvitations(email, userId) {
 }
 
 module.exports = router;
-

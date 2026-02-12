@@ -29,7 +29,14 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        setUser(decoded);
+        const normalized = {
+          ...decoded,
+          userId: typeof decoded.userId === 'string' ? decoded.userId.trim() : decoded.userId,
+          email: typeof decoded.email === 'string' ? decoded.email.trim() : decoded.email,
+          firstName: typeof decoded.firstName === 'string' ? decoded.firstName.trim() : decoded.firstName,
+          lastName: typeof decoded.lastName === 'string' ? decoded.lastName.trim() : decoded.lastName
+        };
+        setUser(normalized);
         // Check if token is expired
         if (decoded.exp * 1000 < Date.now()) {
           logout();
@@ -45,7 +52,14 @@ export const AuthProvider = ({ children }) => {
   const login = (newToken, userData) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
-    setUser(userData);
+    const normalized = userData && {
+      ...userData,
+      userId: typeof userData.userId === 'string' ? userData.userId.trim() : userData.userId,
+      email: typeof userData.email === 'string' ? userData.email.trim() : userData.email,
+      firstName: typeof userData.firstName === 'string' ? userData.firstName.trim() : userData.firstName,
+      lastName: typeof userData.lastName === 'string' ? userData.lastName.trim() : userData.lastName
+    };
+    setUser(normalized || userData);
     navigate('/Home');
   };
 
@@ -70,4 +84,3 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-

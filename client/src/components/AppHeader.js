@@ -48,7 +48,14 @@ export default function AppHeader() {
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          <Typography
+            variant="body2"
+            sx={{
+              display: { xs: 'none', sm: 'block' },
+              color: 'white',
+              textShadow: '0 1px 2px rgba(0,0,0,0.35)'
+            }}
+          >
             {user.firstName} {user.lastName}
           </Typography>
           <IconButton
@@ -75,4 +82,3 @@ export default function AppHeader() {
     </AppBar>
   );
 }
-

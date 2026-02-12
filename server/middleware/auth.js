@@ -17,10 +17,15 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
+    if (user && typeof user === 'object') {
+      if (typeof user.userId === 'string') user.userId = user.userId.trim();
+      if (typeof user.email === 'string') user.email = user.email.trim();
+      if (typeof user.firstName === 'string') user.firstName = user.firstName.trim();
+      if (typeof user.lastName === 'string') user.lastName = user.lastName.trim();
+    }
     req.user = user;
     next();
   });
 };
 
 module.exports = { authenticateToken };
-

@@ -9,10 +9,10 @@ CREATE TABLE notification (
 
 CREATE TABLE appUser (
     userID char(50) primary key,
-    password char(50) not null,
+    password VARCHAR(255) not null,
     firstName CHAR(50) NOT NULL,
     lastName CHAR(50) NOT NULL,
-    email char(50) not null unique
+    email VARCHAR(255) not null unique
 );
 
 CREATE TABLE ProjectManager (
