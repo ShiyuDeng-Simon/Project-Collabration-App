@@ -31,7 +31,7 @@ import { priorityColors } from '../styles/theme';
 import ProgressBar from './ProgressBar';
 
 export default function TaskDetailModal({ task, projectMembers, onClose, onUpdate }) {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [comments, setComments] = useState([]);
@@ -46,11 +46,12 @@ export default function TaskDetailModal({ task, projectMembers, onClose, onUpdat
     progress: task.progress || 0,
     status: task.status || 'To Do'
   });
+  const taskId = task.taskid || task.TaskID;
 
   const fetchComments = useCallback(async () => {
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/comments/task/${task.taskid || task.TaskID}`,
+        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/comments/task/${taskId}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
@@ -63,16 +64,16 @@ export default function TaskDetailModal({ task, projectMembers, onClose, onUpdat
     } catch (err) {
       console.error('Error fetching comments:', err);
     }
-  }, [task.taskid || task.TaskID, token]);
+  }, [taskId, token]);
 
   useEffect(() => {
-    if (task.taskid || task.TaskID) {
+    if (taskId) {
       fetchComments();
       // Poll for new comments every 5 seconds (simple real-time)
       const interval = setInterval(fetchComments, 5000);
       return () => clearInterval(interval);
     }
-  }, [fetchComments, task.taskid, task.TaskID]);
+  }, [fetchComments, taskId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -90,7 +91,7 @@ export default function TaskDetailModal({ task, projectMembers, onClose, onUpdat
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/tasks/${task.taskid || task.TaskID}`,
+        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/tasks/${taskId}`,
         {
           method: 'PUT',
           headers: {
@@ -125,7 +126,7 @@ export default function TaskDetailModal({ task, projectMembers, onClose, onUpdat
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/tasks/${task.taskid || task.TaskID}`,
+        `${process.env.REACT_APP_SERVERURL || 'http://localhost:8000'}/api/tasks/${taskId}`,
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -154,7 +155,7 @@ export default function TaskDetailModal({ task, projectMembers, onClose, onUpdat
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            taskId: task.taskid || task.TaskID,
+            taskId,
             content: newComment.trim()
           })
         }

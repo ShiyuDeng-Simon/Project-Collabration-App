@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { LogoutOutlined, AccountCircle } from '@mui/icons-material';
+import { LogoutOutlined } from '@mui/icons-material';
 import { AppBar, Toolbar, Typography, IconButton, Menu, MenuItem, Avatar, Box } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';

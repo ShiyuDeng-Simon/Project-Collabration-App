@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Add as AddIcon, Search as SearchIcon, FilterList as FilterIcon } from '@mui/icons-material';
-import { Box, Button, TextField, Select, MenuItem, Typography, Container, Chip, CircularProgress } from '@mui/material';
+import { Box, Button, TextField, Select, MenuItem, Typography, Container, CircularProgress } from '@mui/material';
 import ProjectCard from '../components/ProjectCard';
 import CreateProjectModal from '../components/CreateProjectModal';
 import AppHeader from '../components/AppHeader';

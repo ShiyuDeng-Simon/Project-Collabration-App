@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { jwtDecode } from 'jwt-decode';
 import { useAuth } from '../context/AuthContext';
 import { Box, Typography, Alert, CircularProgress, Container, Paper } from '@mui/material';
 
@@ -102,7 +101,6 @@ export default function Login() {
             variant="h3"
             sx={{
               fontWeight: 700,
-              mb: 1,
               fontFamily: 'Poppins, sans-serif',
               background: 'linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%)',
               WebkitBackgroundClip: 'text',

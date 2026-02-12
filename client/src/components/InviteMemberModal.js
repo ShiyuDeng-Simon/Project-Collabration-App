@@ -9,7 +9,6 @@ import {
     TextField,
     IconButton,
     Typography,
-    Box,
     Alert
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';

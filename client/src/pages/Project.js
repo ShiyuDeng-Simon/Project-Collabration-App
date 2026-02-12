@@ -1,11 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAuth } from '../context/AuthContext';
 import { ArrowBack as ArrowBackIcon, Add as AddIcon, People as PeopleIcon } from '@mui/icons-material';
 import { Box, Button, Chip, Typography, Paper, CircularProgress } from '@mui/material';
-import { theme, statusColors } from '../styles/theme';
+import { statusColors } from '../styles/theme';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailModal from '../components/TaskDetailModal';
@@ -22,7 +21,7 @@ const KANBAN_COLUMNS = [
 export default function Project() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated } = useAuth();
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
